@@ -4,8 +4,9 @@ using System.Collections;
 public class HookLinkBehaviour : MonoBehaviour 
 {
 	// The link will follow it's target.
-	public Transform			target	= null;
-	public float				speed	= 0.0f;
+	public Transform			target			= null;
+	public Vector3				targetOffset 	= Vector3.zero;
+	public float				speed			= 0.0f;
 
 
 
@@ -28,12 +29,25 @@ public class HookLinkBehaviour : MonoBehaviour
 		if( target != null )
 		{
 			// Get the direction of this link to it's target, and translate.
-			Vector3			normalToTarget = ( target.position - transform.position ).normalized;
+			Vector3			normalToTarget = ( Origin - transform.position ).normalized;
 			transform.Translate( normalToTarget * speed * Time.deltaTime, Space.World );
 		}
 		else
 		{
 			transform.Translate( Vector3.forward * speed * Time.deltaTime );
+		}
+	}
+
+
+
+	//
+	// Origin
+	//
+	private Vector3 Origin
+	{
+		get
+		{
+			return target.position + targetOffset;
 		}
 	}
 }

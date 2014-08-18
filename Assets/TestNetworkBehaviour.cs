@@ -140,7 +140,12 @@ public class TestNetworkBehaviour : MonoBehaviour
 	[RPC] private void CreateNewPlayerOnServer( NetworkPlayer id )
 	{
 		GameObject newPlayer = Network.Instantiate( playerPrefab, Vector3.zero, Quaternion.identity, 0 ) as GameObject;
-		newPlayer.GetComponent<PlayerBehaviour>().SetPlayerID( id );
+		newPlayer.GetComponent<PlayerClientBehaviour>().SetPlayerID( id );
+
+		if( Network.isClient )
+		{
+			newPlayer.GetComponent<PlayerServerBehaviour>().enabled = false;
+		}
 	}
 	
 
