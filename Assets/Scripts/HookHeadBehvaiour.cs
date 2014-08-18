@@ -12,6 +12,33 @@ public class HookHeadBehvaiour : MonoBehaviour
 
 
 	//
+	// OnSerializeNetworkView
+	//
+	void OnSerializeNetworkView( BitStream stream, NetworkMessageInfo info )
+	{
+		Vector3		syncPosition 	= Vector3.zero;
+		Quaternion	syncRotation	= Quaternion.identity;
+		if( stream.isWriting )
+		{
+			syncPosition = transform.position;
+			syncRotation = transform.rotation;
+			
+			stream.Serialize( ref syncPosition );
+			stream.Serialize( ref syncRotation );
+		}
+		else if( stream.isReading )
+		{
+			stream.Serialize( ref syncPosition );
+			stream.Serialize( ref syncRotation );
+			
+			transform.position = syncPosition;
+			transform.rotation = syncRotation;
+		}
+	}
+
+
+
+	//
 	// Start
 	//
 	void Start () 
@@ -25,14 +52,14 @@ public class HookHeadBehvaiour : MonoBehaviour
 	//
 	void Update () 
 	{
-		if( IsFiring )
+		if( Network.isServer )
 		{
 			// Check if the hook has been full extended.
 			if( links.Count >= maxLinks )
 			{
 				// Flag that we are now retracting. Reverse the link targets in order to go back along the same path.
 				extending = false;
-				ReverseLinkTargets();
+				networkView.RPC( "ReverseLinkTargets", RPCMode.All );//ReverseLinkTargets();
 			}
 
 
@@ -43,7 +70,7 @@ public class HookHeadBehvaiour : MonoBehaviour
 				// Keep creating links until the empty space is full. Only create a link if the hook has been extended enough.
 				for( int i = 0; i < ( int ) ( distance / linkPrefab.transform.localScale.z ); i += 1 )
 				{
-					PushLink();
+					networkView.RPC( "PushLink", RPCMode.All );
 				}
 			}
 			else 
@@ -53,12 +80,12 @@ public class HookHeadBehvaiour : MonoBehaviour
 				{
 	                if( links.Count > 1 )
 					{
-						PopLink();
+						networkView.RPC( "PopLink", RPCMode.All );
 					}
 					// This is the head-link. The hook has fully retracted, so we reset some state and deactivate it.
 					else
 					{
-                        EndHook();
+						networkView.RPC( "EndHook", RPCMode.All );
 					}
 				}
 			}
@@ -72,25 +99,21 @@ public class HookHeadBehvaiour : MonoBehaviour
 	//
 	void OnCollisionEnter( Collision other )
 	{
-        if( IsFiring )
+        if( Network.isServer && IsFiring )
         {
             // We've hit the level mesh, reflect off the contact normal.
     		if( other.gameObject.tag == "Level" )
     		{
     			transform.forward = Vector3.Reflect( transform.forward, other.contacts[0].normal );
     		}
-            // We've collided with another player, start to retract, and bring the player with us.
-            else if( other.gameObject.tag == "Player" && other.gameObject != player )
-            {
-                if( extending )
-                {
-                    extending = false;
-                    ReverseLinkTargets();
-                }
-                other.gameObject.GetComponent<PlayerBehaviour>().AttachToPlayer( gameObject );
-                attachedPlayers.Add( other.gameObject );
-				Debug.Log( "fdsfds" );
-            }
+			else if( other.gameObject.tag == "Player" && other.gameObject != player )
+			{
+				if( extending )
+				{
+					extending = false;
+					networkView.RPC( "ReverseLinkTargets", RPCMode.All );
+				}
+			}
         }
 	}
 
@@ -110,12 +133,22 @@ public class HookHeadBehvaiour : MonoBehaviour
 			// Remove the parent transform of the hook head. It is no longer directly connected to it.
             player             = transform.parent.gameObject;
 			transform.parent   = null;
-			
-			// Add the head as a link.
-			links.Add( gameObject );
+
+			networkView.RPC( "AddLinkAll", RPCMode.All );
 
 			firing = true;
 		}
+	}
+
+
+
+	//
+	// AddLinkAll
+	//
+	[RPC] private void AddLinkAll()
+	{
+		// Add the head as a link.
+		links.Add( gameObject );
 	}
 
 
@@ -134,7 +167,6 @@ public class HookHeadBehvaiour : MonoBehaviour
 
 
 	private List<GameObject>	links 			= new List<GameObject>();
-    private List<GameObject>    attachedPlayers = new List<GameObject>();
 	private bool				extending 		= true;
 	private bool				firing			= false;
     private GameObject          player          = null;
@@ -146,7 +178,7 @@ public class HookHeadBehvaiour : MonoBehaviour
 	// Just set each link's target to the link before it. Set the last link's
 	// target to the origin.
 	//
-	private void ReverseLinkTargets()
+	[RPC] private void ReverseLinkTargets()
 	{
 		for( int i = 0; i < links.Count - 1; i++ )
 		{
@@ -161,9 +193,9 @@ public class HookHeadBehvaiour : MonoBehaviour
 	// PushLink
 	// Add a new link to the back of the hook.
 	//
-	private void PushLink()
+	[RPC] private void PushLink()
 	{
-		GameObject		newLink = Network.Instantiate( linkPrefab, originTransform.position, originTransform.rotation, 0 ) as GameObject;
+		GameObject		newLink = Instantiate( linkPrefab, originTransform.position, originTransform.rotation ) as GameObject;
 		newLink.GetComponent<HookLinkBehaviour>().target = links[links.Count - 1].transform;
 		newLink.GetComponent<HookLinkBehaviour>().speed = speed;
 		links.Add( newLink );
@@ -175,9 +207,9 @@ public class HookHeadBehvaiour : MonoBehaviour
 	// PopLink
 	// Remove a link from the back of the hook.
 	//
-	private void PopLink()
+	[RPC] private void PopLink()
 	{
-		Network.Destroy( links[links.Count - 1].networkView.viewID );
+		Destroy( links[links.Count - 1] );
 		links.RemoveAt( links.Count - 1 );
 		links[links.Count - 1].GetComponent<HookLinkBehaviour>().target = originTransform;
     }
@@ -187,18 +219,12 @@ public class HookHeadBehvaiour : MonoBehaviour
     //
     // EndHook
     //
-    private void EndHook()
+    [RPC] private void EndHook()
     {
         extending = true;
         links.RemoveAt( links.Count - 1 );
         transform.parent = originTransform.parent;
         transform.position = originTransform.position;
         firing = false;
-
-        // Remove all attachments.
-        foreach( GameObject attachments in attachedPlayers )
-        {
-            attachments.GetComponent<PlayerBehaviour>().DetachFromPlayer( gameObject );
-        }
     }
 }

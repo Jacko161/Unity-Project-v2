@@ -1,7 +1,8 @@
 ﻿using UnityEngine;
 using System.Collections;
 
-public class TestNetworkBehaviour : MonoBehaviour {
+public class TestNetworkBehaviour : MonoBehaviour 
+{
 
 
 	public GameObject			playerPrefab;
@@ -33,7 +34,7 @@ public class TestNetworkBehaviour : MonoBehaviour {
 	//
 	void OnServerInitialized()
 	{
-		Network.Instantiate( playerPrefab, Vector3.zero, Quaternion.identity, 0 ); 
+		CreateNewPlayerOnServer(  Network.player );
 	}
 
 
@@ -43,7 +44,7 @@ public class TestNetworkBehaviour : MonoBehaviour {
 	//
 	void OnConnectedToServer()
 	{
-		Network.Instantiate( playerPrefab, Vector3.zero, Quaternion.identity, 0 );
+		networkView.RPC( "CreateNewPlayerOnServer", RPCMode.Server, Network.player );
 	}
 
 
@@ -129,6 +130,17 @@ public class TestNetworkBehaviour : MonoBehaviour {
 	private void JoinServer( HostData hostData )
 	{
 		Network.Connect( hostData );
+	}
+
+
+
+	//
+	// CreateNewPlayerOnServer
+	//
+	[RPC] private void CreateNewPlayerOnServer( NetworkPlayer id )
+	{
+		GameObject newPlayer = Network.Instantiate( playerPrefab, Vector3.zero, Quaternion.identity, 0 ) as GameObject;
+		newPlayer.GetComponent<PlayerBehaviour>().SetPlayerID( id );
 	}
 	
 

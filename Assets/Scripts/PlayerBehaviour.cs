@@ -25,7 +25,7 @@ public class PlayerBehaviour : MonoBehaviour
 			stream.Serialize( ref syncPosition );
 			stream.Serialize( ref syncRotation );
 		}
-		else if( stream.isReading )
+		else
 		{
 			stream.Serialize( ref syncPosition );
 			stream.Serialize( ref syncRotation );
@@ -43,7 +43,6 @@ public class PlayerBehaviour : MonoBehaviour
 	{
 		hookOrigin 			= new GameObject( "HookOrigin" );
 		agent      			= GetComponent<NavMeshAgent>();
-		target 				= gameObject.transform.position;
 	}
 
 
@@ -53,33 +52,43 @@ public class PlayerBehaviour : MonoBehaviour
 	// 
 	void Update () 
 	{
-		if( Input.GetMouseButtonDown( 1 ) && networkView.isMine )
+		// Specific to a single client. Invokes RPC methods.
+		if( Network.player == clientPlayerId )
 		{
-			if( !hookHead.GetComponent<HookHeadBehvaiour>().IsFiring )
+			if( Input.GetMouseButtonDown( 1 ) && !hookHead.GetComponent<HookHeadBehvaiour>().IsFiring )
 			{
-				hookOrigin.transform.parent = transform;
-				hookOrigin.transform.localPosition = hookHead.transform.localPosition;
-				hookOrigin.transform.localRotation = hookHead.transform.localRotation;
-
-				hookHead.GetComponent<HookHeadBehvaiour>().originTransform = hookOrigin.transform;
-
 				Vector3 direction = Utility.DirectionToMousePosition( Camera.main, hookHead.transform.position );
-				hookHead.transform.forward = new Vector3( direction.x, hookHead.transform.forward.y, direction.z );
-				hookHead.GetComponent<HookHeadBehvaiour>().FireHook();
+
+				if( Network.isServer )
+				{
+					FireHook( direction );
+				}
+				else
+				{
+					networkView.RPC( "FireHook", RPCMode.Server, direction );
+				}
+			}
+			if( Input.GetMouseButtonDown( 0 ) )
+			{
+				if( Network.isServer )
+				{
+					SetAgentDestination( ( Camera.main.ScreenToWorldPoint( new Vector3( Input.mousePosition.x, Input.mousePosition.y, Camera.main.nearClipPlane ) ) - Camera.main.transform.position ).normalized, Camera.main.transform.position );
+				}
+				else
+				{
+					networkView.RPC( "SetAgentDestination", RPCMode.Server, ( Camera.main.ScreenToWorldPoint( new Vector3( Input.mousePosition.x, Input.mousePosition.y, Camera.main.nearClipPlane ) ) - Camera.main.transform.position ).normalized, Camera.main.transform.position );	
+				}
 			}
 		}
-        if( attachment != null )
-        {
-            // Move with the attached grapple.
-            Vector3         normalToTarget = ( attachment.transform.position - transform.position ).normalized;
-            transform.Translate( normalToTarget * hookHead.GetComponent<HookHeadBehvaiour>().speed * Time.deltaTime, Space.World );
-        }
-		if( agent.enabled && networkView.isMine )
+		if( attachment != null )
 		{
-			agent.SetDestination( target );
-			if ( Input.GetMouseButtonDown( 0 ) )
+			if( Network.isServer )
 			{
-				Move();
+				MoveWithAttachment();
+			}
+			else
+			{
+				networkView.RPC( "MoveWithAttachment", RPCMode.Server );
 			}
 		}
 	}
@@ -91,10 +100,55 @@ public class PlayerBehaviour : MonoBehaviour
 	//
 	void OnTriggerEnter( Collider other )
 	{
-		if( other.tag == "PlayerBoundry" && other.transform.parent.gameObject.GetComponent<PlayerBehaviour>().hookHead == attachment  )
+		if( Network.isServer )
 		{
-			DetachFromPlayer( attachment );
+			if( other.tag == "PlayerBoundry" && other.transform.parent.gameObject.GetComponent<PlayerBehaviour>().hookHead == attachment )
+			{
+				DetachFromPlayer( attachment );
+			}
 		}
+	}
+
+
+
+	//
+	// OnTriggerStay
+	//
+	void OnTriggerStay( Collider other )
+	{
+		if( Network.isServer )
+		{
+			if( other.tag == "PlayerBoundry" && other.transform.parent.gameObject.GetComponent<PlayerBehaviour>().hookHead == attachment )
+			{
+				DetachFromPlayer( attachment );
+			}
+		}
+	}
+
+
+
+	//
+	// OnCollisionEnter
+	//
+	void OnCollisionEnter( Collision collision )
+	{
+		if( Network.isServer )
+		{
+			if( collision.gameObject.tag == "HookHead" && collision.gameObject != hookHead && collision.gameObject.GetComponent<HookHeadBehvaiour>().IsFiring )
+			{
+				AttachToPlayer( collision.gameObject );
+			}
+		}
+	}
+
+
+
+	//
+	// SetPlayerID
+	//
+	public void SetPlayerID( NetworkPlayer id )
+	{
+		networkView.RPC( "SetNetworkPlayerID", RPCMode.All, id );
 	}
 
 
@@ -126,31 +180,77 @@ public class PlayerBehaviour : MonoBehaviour
             attachment = null;
 			agent.enabled = true;
 			agent.SetDestination( transform.position );
-			target = transform.position;
         }
     }
 
 
-	private GameObject				hookOrigin = null;
-	private NavMeshAgent			agent	   = null;
-	private Vector3 				target;
-
-
 
 	//
-	// Get the point of impact of the ray and move to it.
+	// FireHook
 	//
-	private void Move()
+	[RPC] private void FireHook( Vector3 direction )
 	{
+		networkView.RPC( "SetHookOrigin", RPCMode.All );
+
+		hookHead.transform.forward = new Vector3( direction.x, hookHead.transform.forward.y, direction.z );
+		hookHead.GetComponent<HookHeadBehvaiour>().FireHook();
+	}
+
+
+
+	//
+	// SetHookOrigin
+	//
+	[RPC] private void SetHookOrigin()
+	{
+		hookOrigin.transform.parent = transform;
+		hookOrigin.transform.localPosition = hookHead.transform.localPosition;
+		hookOrigin.transform.localRotation = hookHead.transform.localRotation;
+		hookHead.GetComponent<HookHeadBehvaiour>().originTransform = hookOrigin.transform;
+	}
+
+
+
+	//
+	// SetAgentDestination
+	//
+	[RPC] private void SetAgentDestination( Vector3 direction, Vector3 cameraPosition )
+	{	
+		Ray			ray = new Ray( cameraPosition, direction );
 		RaycastHit 	hit;
-		// set ray conditions to from camera to mouse
-		Ray 		ray 	= Camera.main.ScreenPointToRay( Input.mousePosition );
-		
 		Physics.Raycast( ray, out hit );
-		
+
 		if ( hit.collider != null && hit.collider.tag == "Level" )
 		{
-			target 			= hit.point;
+			agent.SetDestination( hit.point );
 		}
 	}
+
+
+
+	//
+	// MoveWithAttachment
+	//
+	[RPC] private void MoveWithAttachment()
+	{			
+		// Move with the attached grapple.
+		Vector3         normalToTarget = ( attachment.transform.position - transform.position ).normalized;
+		transform.Translate( normalToTarget * hookHead.GetComponent<HookHeadBehvaiour>().speed * Time.deltaTime, Space.World );
+	}
+
+
+
+	//
+	// SetPlayerNetworkID
+	//
+	[RPC] private void SetNetworkPlayerID( NetworkPlayer id )
+	{
+		clientPlayerId = id;
+	}
+	
+
+	private GameObject				hookOrigin = null;
+	private NavMeshAgent			agent	   = null;
+	private NetworkPlayer			clientPlayerId;
+
 }

@@ -10,33 +10,6 @@ public class HookLinkBehaviour : MonoBehaviour
 
 
 	//
-	// OnSerializeNetworkView
-	//
-	void OnSerializeNetworkView( BitStream stream, NetworkMessageInfo info )
-	{
-		Vector3		syncPosition 	= Vector3.zero;
-		Quaternion	syncRotation	= Quaternion.identity;
-		if( stream.isWriting )
-		{
-			syncPosition = transform.position;
-			syncRotation = transform.rotation;
-
-			stream.Serialize( ref syncPosition );
-			stream.Serialize( ref syncRotation );
-		}
-		else if( stream.isReading )
-		{
-			stream.Serialize( ref syncPosition );
-			stream.Serialize( ref syncRotation );
-
-			transform.position = syncPosition;
-			transform.rotation = syncRotation;
-		}
-	}
-
-
-
-	//
 	// Start
 	//
 	void Start () 
