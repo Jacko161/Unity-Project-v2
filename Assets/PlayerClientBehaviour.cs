@@ -50,7 +50,7 @@ public class PlayerClientBehaviour : MonoBehaviour
 		// Specific to a single client. Invokes RPC methods.
 		if( Network.player == clientPlayerId )
 		{
-			if( Input.GetMouseButtonDown( 1 ) && !hookHead.GetComponent<HookHeadServerBehaviour>().IsFiring )
+			if( Input.GetMouseButtonDown( 1 ) )
 			{
 				Vector3 direction = Utility.DirectionToMousePosition( Camera.main, hookHead.transform.position );
 				

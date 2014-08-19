@@ -16,9 +16,12 @@ public class PlayerServerBehaviour : MonoBehaviour
 	//
 	[RPC] public void FireHook( Vector3 direction )
 	{
-		hookHead.GetComponent<HookHeadServerBehaviour>().hookOffset = hookHead.transform.localPosition;
-        hookHead.transform.forward = new Vector3( direction.x, hookHead.transform.forward.y, direction.z );
-		hookHead.GetComponent<HookHeadServerBehaviour>().FireHook();
+        if( !hookHead.GetComponent<HookHeadServerBehaviour>().IsFiring )
+        {
+		    hookHead.GetComponent<HookHeadServerBehaviour>().hookOffset = hookHead.transform.localPosition;
+            hookHead.transform.forward = new Vector3( direction.x, hookHead.transform.forward.y, direction.z );
+		    hookHead.GetComponent<HookHeadServerBehaviour>().FireHook();
+        }
 	}
 
 	

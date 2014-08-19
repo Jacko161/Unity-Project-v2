@@ -79,14 +79,17 @@ public class HookHeadServerBehaviour : MonoBehaviour
 	//
 	void OnCollisionEnter( Collision other )
 	{
-		if( Network.isServer && IsFiring )
+		if( IsFiring )
 		{
 			// We've hit the level mesh, reflect off the contact normal.
 			if( other.gameObject.tag == "Level" )
 			{
-				transform.forward = Vector3.Reflect( transform.forward, other.contacts[0].normal );
+				if( other.contacts.Length > 0 )
+				{
+					transform.forward = Vector3.Reflect( transform.forward, other.contacts[0].normal );	
+				}
 			}
-			else if( other.gameObject.tag == "Player" && other.gameObject != player )
+			if( other.gameObject.tag == "Player" && other.gameObject != player )
 			{
 				if( extending )
 				{
