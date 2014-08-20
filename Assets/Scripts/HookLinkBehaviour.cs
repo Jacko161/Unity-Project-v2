@@ -7,6 +7,7 @@ public class HookLinkBehaviour : MonoBehaviour
 	public Transform			target			= null;
 	public Vector3				targetOffset 	= Vector3.zero;
 	public float				speed			= 0.0f;
+	public GameObject			endPivot;
 
 
 
@@ -15,7 +16,6 @@ public class HookLinkBehaviour : MonoBehaviour
 	//
 	void Start () 
 	{
-		transform.Rotate( new Vector3( 0.0f, 90.0f, 0.0f ) );
 	}
 
 
@@ -32,7 +32,10 @@ public class HookLinkBehaviour : MonoBehaviour
 			// Get the direction of this link to it's target, and translate.
 			Vector3			normalToTarget = ( Origin - transform.position ).normalized;
 			transform.rotation = Quaternion.LookRotation( normalToTarget );
-			transform.Translate( Vector3.forward * speed * Time.deltaTime );
+			if( Vector3.Distance( Origin, transform.position ) > 0.70f )
+			{
+				transform.Translate( Vector3.forward * speed * Time.deltaTime );
+			}
 		}
 		else
 		{
