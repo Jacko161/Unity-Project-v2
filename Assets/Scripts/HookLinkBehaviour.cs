@@ -32,7 +32,7 @@ public class HookLinkBehaviour : MonoBehaviour
 			// Get the direction of this link to it's target, and translate.
 			Vector3			normalToTarget = ( Origin - transform.position ).normalized;
 			transform.rotation = Quaternion.LookRotation( normalToTarget );
-			if( Vector3.Distance( Origin, transform.position ) > 0.70f )
+			if( Vector3.Distance( Origin, transform.position ) > 0.8f )
 			{
 				transform.Translate( Vector3.forward * speed * Time.deltaTime );
 			}

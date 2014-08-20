@@ -33,7 +33,7 @@ public class HookHeadServerBehaviour : MonoBehaviour
 
 			if( linkMesh != null )
 			{
-				linkOffset = 0.70f;//linkMesh.sharedMesh.bounds.size.z - linkZOffset * 5;
+				linkOffset = 0.8f;//linkMesh.sharedMesh.bounds.size.z - linkZOffset * 5;
 			}
 		}
 	}
