@@ -3,6 +3,10 @@ using System.Collections;
 
 public class HookLinkBehaviour : MonoBehaviour 
 {
+    public static float         gap             = 0.8f;
+
+
+
 	// The link will follow it's target.
 	public Transform			target			= null;
 	public Vector3				targetOffset 	= Vector3.zero;
@@ -32,7 +36,7 @@ public class HookLinkBehaviour : MonoBehaviour
 			// Get the direction of this link to it's target, and translate.
 			Vector3			normalToTarget = ( Origin - transform.position ).normalized;
 			transform.rotation = Quaternion.LookRotation( normalToTarget );
-			if( Vector3.Distance( Origin, transform.position ) > 0.8f )
+			//if( Vector3.Distance( Origin, transform.position ) > gap )
 			{
 				transform.Translate( Vector3.forward * speed * Time.deltaTime );
 			}
@@ -45,14 +49,34 @@ public class HookLinkBehaviour : MonoBehaviour
 
 
 
-	//
-	// Origin
-	//
-	private Vector3 Origin
-	{
-		get
-		{
-			return target.position + targetOffset;
-		}
-	}
+    //
+    // IsEnxtending
+    //
+    public bool IsExtending
+    {
+        get
+        {
+            return isExtending;
+        }
+        set
+        {
+            isExtending = value;
+        }
+    }
+
+
+    private bool                 isExtending       = false;
+
+
+
+    //
+    // Origin
+    //
+    private Vector3 Origin
+    {
+        get
+        {
+            return target.position + targetOffset;
+        }
+    }
 }

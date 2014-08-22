@@ -23,19 +23,6 @@ public class HookHeadServerBehaviour : MonoBehaviour
 		player 			= transform.parent.gameObject;
 		clientScript 	= GetComponent<HookHeadClientBehaviour>();
 		clientLinks		= clientScript.links;
-
-		GameObject		linkEndPivot = linkPrefab.transform.FindChild( "EndPivot" ).gameObject;
-
-		if( linkEndPivot != null )
-		{
-			float 			linkZOffset 				 = -linkEndPivot.transform.localPosition.z;
-			MeshFilter		linkMesh					 = linkPrefab.GetComponent<MeshFilter>() as MeshFilter;
-
-			if( linkMesh != null )
-			{
-				linkOffset = 0.8f;//linkMesh.sharedMesh.bounds.size.z - linkZOffset * 5;
-			}
-		}
 	}
 
 
@@ -61,7 +48,7 @@ public class HookHeadServerBehaviour : MonoBehaviour
 			if( extending )
 			{
 				// Keep creating links until the empty space is full. Only create a link if the hook has been extended enough.
-				for( int i = 0; i < ( int ) ( distance / ( linkOffset ) ); i += 1 )
+                for( int i = 0; i < ( int ) ( distance / ( HookLinkBehaviour.gap ) ); i += 1 )
 				{
 					networkView.RPC( "PushLink", RPCMode.All, HookOrigin, Quaternion.LookRotation( ( clientLinks[clientLinks.Count - 1].transform.position - HookOrigin ).normalized ) );
 				}
@@ -69,7 +56,7 @@ public class HookHeadServerBehaviour : MonoBehaviour
 			else 
 			{
 				// Retract links as they return to the origin.
-				if( distance < linkOffset )
+				if( distance < HookLinkBehaviour.gap )
 				{
 					if( clientLinks.Count > 1 )
 					{
@@ -200,5 +187,4 @@ public class HookHeadServerBehaviour : MonoBehaviour
 	private GameObject          		player          = null;
 	private HookHeadClientBehaviour		clientScript;
 	private List<GameObject>			clientLinks		= null;
-	private float						linkOffset		= 0.0f;
 }
