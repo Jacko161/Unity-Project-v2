@@ -8,10 +8,10 @@ public class HookLinkBehaviour : MonoBehaviour
 
 
 	// The link will follow it's target.
-	public Transform			target			= null;
-	public Vector3				targetOffset 	= Vector3.zero;
+	public HookLinkBehaviour	target;
+	public GameObject			frontPivot;
+	public GameObject			backPivot;
 	public float				speed			= 0.0f;
-	public GameObject			endPivot;
 
 
 
@@ -20,6 +20,7 @@ public class HookLinkBehaviour : MonoBehaviour
 	//
 	void Start () 
 	{
+		currentPivot = backPivot;
 	}
 
 
@@ -33,15 +34,33 @@ public class HookLinkBehaviour : MonoBehaviour
 		// for the head link only. If it's not null, follow the target.
 		if( target != null )
 		{
-			// Get the direction of this link to it's target, and translate.
-			Vector3			normalToTarget = ( Origin - transform.position ).normalized;
-			transform.rotation = Quaternion.LookRotation( normalToTarget );
-			if( Vector3.Distance( Origin, transform.position ) > gap )
+			Transform				targetPivot = null;
+			if( frontPivot == null && target.backPivot != null )
 			{
-				transform.Translate( Vector3.forward * speed * Time.deltaTime );
+				targetPivot = target.backPivot.transform;
+			}
+			else
+			{
+				targetPivot = target.CurrentPivot.transform;
+			}
+
+			// Get the direction of this link to it's target, and translate.
+			Vector3			normalToTarget = ( targetPivot.position - CurrentPivot.transform.position ).normalized;
+
+			Quaternion		look		   = Quaternion.FromToRotation( transform.forward, IsExtending ? normalToTarget : -normalToTarget );
+
+			Vector3			axis		   = Vector3.zero;
+			float			angle		   = 0.0f;
+			look.ToAngleAxis( out angle, out axis );
+
+			transform.RotateAround( CurrentPivot.transform.position, axis, angle );
+
+			if( Vector3.Distance( targetPivot.position, CurrentPivot.transform.position ) > gap )
+			{
+				transform.Translate( normalToTarget * speed * Time.deltaTime, Space.World );
 			}
 		}
-		else
+		else if( backPivot != null )
 		{
 			transform.Translate( Vector3.forward * speed * Time.deltaTime );
 		}
@@ -50,7 +69,7 @@ public class HookLinkBehaviour : MonoBehaviour
 
 
     //
-    // IsEnxtending
+    // IsExtending
     //
     public bool IsExtending
     {
@@ -61,22 +80,37 @@ public class HookLinkBehaviour : MonoBehaviour
         set
         {
             isExtending = value;
+
+			if( isExtending )
+			{
+				currentPivot = backPivot;
+			}
+			else if( frontPivot != null )
+			{
+				currentPivot = frontPivot;
+			}
         }
     }
 
 
-    private bool                 isExtending       = false;
+
+	//
+	// CurrentPivot
+	//
+	public GameObject CurrentPivot
+	{
+		get
+		{
+			if( currentPivot == null )
+			{
+				return gameObject;
+			}
+			return currentPivot;
+		}
+	}
 
 
 
-    //
-    // Origin
-    //
-    private Vector3 Origin
-    {
-        get
-        {
-            return target.position + targetOffset;
-        }
-    }
+	private bool                 isExtending       = true;
+	private	GameObject			 currentPivot	   = null;
 }

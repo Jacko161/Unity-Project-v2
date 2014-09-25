@@ -7,11 +7,9 @@ using System.Collections.Generic;
 public class HookHeadServerBehaviour : MonoBehaviour 
 {
 
-
+	public GameObject			linkPrefab;
 	public float				speed 		= 10.0f;
 	public int					maxLinks 	= 10;
-	public GameObject			linkPrefab;
-	public Vector3				hookOffset;
 
 
 
@@ -20,7 +18,6 @@ public class HookHeadServerBehaviour : MonoBehaviour
 	//
 	void Start () 
 	{
-		player 			= transform.parent.gameObject;
 		clientScript 	= GetComponent<HookHeadClientBehaviour>();
 		clientLinks		= clientScript.links;
 	}
@@ -39,18 +36,18 @@ public class HookHeadServerBehaviour : MonoBehaviour
 			{
 				// Flag that we are now retracting. Reverse the link targets in order to go back along the same path.
 				extending = false;
-				networkView.RPC( "ReverseLinkTargets", RPCMode.All );//ReverseLinkTargets();
+				networkView.RPC( "ReverseLinkTargets", RPCMode.All );
 			}
 			
 			
 			// Distance between the last spawned link and the origin.
-			float 		distance = Vector3.Distance( clientLinks[clientLinks.Count - 1].transform.position, HookOrigin );
+			float 		distance = Vector3.Distance( clientLinks[clientLinks.Count - 1].GetComponent<HookLinkBehaviour>().CurrentPivot.transform.position, clientScript.hookOrigin.transform.position );
 			if( extending )
 			{
 				// Keep creating links until the empty space is full. Only create a link if the hook has been extended enough.
                 for( int i = 0; i < ( int ) ( distance / ( HookLinkBehaviour.gap ) ); i += 1 )
 				{
-					networkView.RPC( "PushLink", RPCMode.All, HookOrigin, Quaternion.LookRotation( ( clientLinks[clientLinks.Count - 1].transform.position - HookOrigin ).normalized ) );
+					networkView.RPC( "PushLink", RPCMode.All, clientScript.hookOrigin.transform.position, Quaternion.LookRotation( ( clientLinks[clientLinks.Count - 1].GetComponent<HookLinkBehaviour>().CurrentPivot.transform.position - clientScript.hookOrigin.transform.position ).normalized ) );
 				}
 			}
 			else 
@@ -86,10 +83,10 @@ public class HookHeadServerBehaviour : MonoBehaviour
 			{
 				if( other.contacts.Length > 0 )
 				{
-					transform.forward = Vector3.Reflect( transform.forward, other.contacts[0].normal );	
+					transform.forward =  Vector3.Reflect( transform.forward, other.contacts[0].normal );	
 				}
 			}
-			if( other.gameObject.tag == "Player" && other.gameObject != player )
+			if( other.gameObject.tag == "Player" && other.gameObject.transform != parent )
 			{
 				if( extending )
 				{
@@ -112,10 +109,13 @@ public class HookHeadServerBehaviour : MonoBehaviour
 			// Set the speed for all the links. Target is set to null so that the head link just follows it's initial normal.
 			GetComponent<HookLinkBehaviour>().target = null;
 			GetComponent<HookLinkBehaviour>().speed = speed;
-			
-			// Remove the parent transform of the hook head. It is no longer directly connected to it.
-			player             = transform.parent.gameObject;
-			transform.parent   = null;
+
+
+			parent			   									= transform.parent;
+			clientScript.hookOrigin.transform.parent 			= parent;
+			clientScript.hookOrigin.transform.localPosition 	= transform.localPosition;
+			transform.parent   									= null;
+
 			
 			networkView.RPC( "AddHeadLink", RPCMode.All );
 
@@ -132,9 +132,13 @@ public class HookHeadServerBehaviour : MonoBehaviour
 	{
 		extending = true;
 		networkView.RPC( "RemoveHeadLink", RPCMode.All );
+		
+		transform.parent 								= parent;
+		transform.localRotation							= Quaternion.identity;
+		transform.localPosition							= clientScript.hookOrigin.transform.localPosition;
+		clientScript.hookOrigin.transform.parent 		= transform;
+		clientScript.hookOrigin.transform.localPosition	= Vector3.zero;
 
-		transform.parent = player.transform;
-		transform.localPosition = hookOffset;
 
 		GetComponent<HookLinkBehaviour>().enabled = false;
 		firing = false;
@@ -155,36 +159,9 @@ public class HookHeadServerBehaviour : MonoBehaviour
 
 
 
-	//
-	// HookOrigin
-	//
-	public Vector3 HookOrigin
-	{
-		get
-		{
-			return player.transform.position + hookOffset;
-		}
-	}
-
-
-
-	//
-	// PlayerTransform
-	//
-	public Transform PlayerTransform
-	{
-		get
-		{
-			return player.transform;
-		}
-	}
-
-
-
-
 	private bool						extending 		= true;
 	private bool						firing			= false;
-	private GameObject          		player          = null;
-	private HookHeadClientBehaviour		clientScript;
+	private	Transform					parent			= null;
+	private HookHeadClientBehaviour		clientScript	= null;
 	private List<GameObject>			clientLinks		= null;
 }

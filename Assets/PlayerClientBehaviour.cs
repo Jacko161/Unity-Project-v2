@@ -5,7 +5,6 @@ public class PlayerClientBehaviour : MonoBehaviour
 {
 
 
-
 	//
 	// OnSerializeNetworkView
 	//
@@ -13,6 +12,7 @@ public class PlayerClientBehaviour : MonoBehaviour
 	{
 		Vector3			syncPosition	= Vector3.zero;	
 		Quaternion		syncRotation	= Quaternion.identity;
+
 		if( stream.isWriting )
 		{
 			syncPosition = transform.position;
@@ -52,15 +52,15 @@ public class PlayerClientBehaviour : MonoBehaviour
 		{
 			if( Input.GetMouseButtonDown( 1 ) )
 			{
-				Vector3 direction = Utility.DirectionToMousePosition( Camera.main, hookHead.transform.position );
+				Vector3 mousePosition = Utility.GetMousePosition( Camera.main );
 				
 				if( Network.isServer )
 				{
-					serverScript.FireHook( direction );
+					serverScript.FireHook( ( mousePosition - hookHead.transform.position ).normalized );
 				}
 				else
 				{
-					networkView.RPC( "FireHook", RPCMode.Server, direction );
+					networkView.RPC( "FireHook", RPCMode.Server, ( mousePosition - hookHead.transform.position ).normalized );
 				}
 			}
 			if( Input.GetMouseButtonDown( 0 ) )
@@ -78,24 +78,6 @@ public class PlayerClientBehaviour : MonoBehaviour
         
     }
 
-    //
-    //Player Hud
-    //
-    public void OnGUI()
-    {
-        GUI.Box(new Rect(100, Screen.height - 100, 50, 50), "$");
-        GUI.Box(new Rect(Screen.width / 2, Screen.height - 150, 50, 50), "HP");
-        GUI.Box(new Rect(Screen.width / 4, Screen.height - 100, 50, 50), "CD");
-        GUI.Box(new Rect(Screen.width / 2, Screen.height - 75, 50, 50), "Mana");
-
-        GUI.Box(new Rect(Screen.width - 250, Screen.height - 250, 250, 250), "Map");
-
-        GUI.Box(new Rect(Screen.width / 2 - 50, Screen.height - (Screen.height * 0.99f), 50, 50), "Scores");
-        GUI.Box(new Rect(Screen.width / 2 - 50, Screen.height - (Screen.height * 0.99f) + 50, 50, 50), "Timer");
-
-        GUI.Button(new Rect(50, Screen.height - 200, 100, 50), "Shop");
-    }
-
 
     
     //
@@ -105,6 +87,16 @@ public class PlayerClientBehaviour : MonoBehaviour
     {
         networkView.RPC( "SetNetworkPlayerID", RPCMode.All, id );
     }
+
+
+
+	//
+	// GetPlayerID
+	//
+	public NetworkPlayer GetPlayerID()
+	{
+		return clientPlayerId;
+	}
     
     
     

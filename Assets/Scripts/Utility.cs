@@ -11,10 +11,8 @@ public class Utility
 	//
 	static public Vector3 DirectionToMousePosition( Camera camera, Vector3 from )
 	{
-		RaycastHit 		hit;
-		Ray 			cast = camera.ScreenPointToRay( Input.mousePosition );
-		Physics.Raycast( cast, out hit );
-		return ( hit.point - from ).normalized;
+		Vector3			screenPoint = camera.ScreenToWorldPoint( new Vector3( Input.mousePosition.x, Input.mousePosition.y, camera.nearClipPlane ) );
+		return ( screenPoint - from ).normalized;
 	}
 
 

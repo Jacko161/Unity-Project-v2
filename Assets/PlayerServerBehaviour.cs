@@ -18,7 +18,6 @@ public class PlayerServerBehaviour : MonoBehaviour
 	{
         if( !hookHead.GetComponent<HookHeadServerBehaviour>().IsFiring )
         {
-		    hookHead.GetComponent<HookHeadServerBehaviour>().hookOffset = hookHead.transform.localPosition;
             hookHead.transform.forward = new Vector3( direction.x, hookHead.transform.forward.y, direction.z );
 		    hookHead.GetComponent<HookHeadServerBehaviour>().FireHook();
         }
@@ -31,13 +30,16 @@ public class PlayerServerBehaviour : MonoBehaviour
 	//
 	[RPC] public void SetAgentDestination( Vector3 direction, Vector3 cameraPosition )
 	{	
-		Ray			ray = new Ray( cameraPosition, direction );
-		RaycastHit 	hit;
-		Physics.Raycast( ray, out hit );
-		
-		if ( hit.collider != null && hit.collider.tag == "Level" )
+		if( agent.enabled )
 		{
-			agent.SetDestination( hit.point );
+			Ray			ray = new Ray( cameraPosition, direction );
+			RaycastHit 	hit;
+			Physics.Raycast( ray, out hit );
+			
+			if ( hit.collider != null && hit.collider.tag == "Level" )
+			{
+				agent.SetDestination( hit.point );
+			}
 		}
 	}
 

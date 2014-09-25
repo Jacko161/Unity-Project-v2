@@ -1,11 +1,13 @@
 ﻿using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 
 public class TestNetworkBehaviour : MonoBehaviour 
 {
 
 
 	public GameObject			playerPrefab;
+	public GameObject			gameController;
 
 
 
@@ -35,6 +37,7 @@ public class TestNetworkBehaviour : MonoBehaviour
 	void OnServerInitialized()
 	{
 		CreateNewPlayerOnServer(  Network.player );
+		gameController.GetComponent<GameControllerBahviour>().StartTeamDeathMatch( 10, "fs", "fsaf", 10000 );
 	}
 
 
@@ -45,6 +48,7 @@ public class TestNetworkBehaviour : MonoBehaviour
 	void OnConnectedToServer()
 	{
 		networkView.RPC( "CreateNewPlayerOnServer", RPCMode.Server, Network.player );
+		gameController.GetComponent<GameControllerBahviour>().StartTeamDeathMatch( 10, "fs", "fsaf", 10000 );
 	}
 
 
@@ -141,12 +145,6 @@ public class TestNetworkBehaviour : MonoBehaviour
 	{
 		GameObject newPlayer = Network.Instantiate( playerPrefab, Vector3.zero, Quaternion.identity, 0 ) as GameObject;
 		newPlayer.GetComponent<PlayerClientBehaviour>().SetPlayerID( id );
-
-		if( Network.isClient )
-		{
-			newPlayer.GetComponent<PlayerServerBehaviour>().enabled = false;
-		}
 	}
-	
 
 }
