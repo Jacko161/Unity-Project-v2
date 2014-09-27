@@ -7,9 +7,27 @@ using System.Collections.Generic;
 public class HookHeadServerBehaviour : MonoBehaviour 
 {
 
+
+
+	//
+	// State
+	//
+	[System.Flags]
+	public enum State
+	{
+		idle   		= 0,
+		firing 		= 1,
+		fading 		= 2,
+		attached 	= 4,
+		extending	= 8,
+	}
+
+
+
 	public GameObject			linkPrefab;
-	public float				speed 		= 10.0f;
-	public int					maxLinks 	= 10;
+	public float				speed 					= 10.0f;
+	public int					maxLinks 				= 10;
+	public float				fadeTimeSeconds			= 1.0f;
 
 
 
@@ -20,6 +38,7 @@ public class HookHeadServerBehaviour : MonoBehaviour
 	{
 		clientScript 	= GetComponent<HookHeadClientBehaviour>();
 		clientLinks		= clientScript.links;
+		attachments		= new List<GameObject>();
 	}
 
 
@@ -29,20 +48,20 @@ public class HookHeadServerBehaviour : MonoBehaviour
 	//
 	void Update () 
 	{
-		if( IsFiring )
+		if( ( state & State.firing ) == State.firing )
 		{
 			// Check if the hook has been full extended.
 			if( clientLinks.Count >= maxLinks )
 			{
 				// Flag that we are now retracting. Reverse the link targets in order to go back along the same path.
-				extending = false;
+				state &= ~State.extending;
 				networkView.RPC( "ReverseLinkTargets", RPCMode.All );
 			}
 			
 			
 			// Distance between the last spawned link and the origin.
 			float 		distance = Vector3.Distance( clientLinks[clientLinks.Count - 1].GetComponent<HookLinkBehaviour>().CurrentPivot.transform.position, clientScript.hookOrigin.transform.position );
-			if( extending )
+			if( ( state & State.extending ) == State.extending )
 			{
 				// Keep creating links until the empty space is full. Only create a link if the hook has been extended enough.
                 for( int i = 0; i < ( int ) ( distance / ( HookLinkBehaviour.gap ) ); i += 1 )
@@ -67,6 +86,18 @@ public class HookHeadServerBehaviour : MonoBehaviour
 				}
 			}
 		}
+		// If we're fading, we just want to fade the mesh. No other logic is needed at all.
+		else if( ( state & State.fading ) == State.fading )
+		{
+			float		deltaFadeTime =  Time.time - fadeStartTime;
+			networkView.RPC( "SetMeshAlpha", RPCMode.All, 1.0f - ( deltaFadeTime / fadeTimeSeconds ) );
+
+			Debug.Log(  1.0f - ( deltaFadeTime / fadeTimeSeconds ) );
+			if( deltaFadeTime > fadeTimeSeconds )
+			{
+				EndFade();
+			}
+		}
 	}
 
 
@@ -76,7 +107,7 @@ public class HookHeadServerBehaviour : MonoBehaviour
 	//
 	void OnCollisionEnter( Collision other )
 	{
-		if( IsFiring )
+		if( ( state & State.firing ) == State.firing )
 		{
 			// We've hit the level mesh, reflect off the contact normal.
 			if( other.gameObject.tag == "Level" )
@@ -88,9 +119,12 @@ public class HookHeadServerBehaviour : MonoBehaviour
 			}
 			if( other.gameObject.tag == "Player" && other.gameObject.transform != parent )
 			{
-				if( extending )
+				if( ( state & State.extending ) == State.extending )
 				{
-					extending = false;
+					attachments.Add( other.gameObject );
+
+					// We hit a player. Attach to them and start retracting.
+					state &= ~State.extending;
 					networkView.RPC( "ReverseLinkTargets", RPCMode.All );
 				}
 			}
@@ -104,7 +138,7 @@ public class HookHeadServerBehaviour : MonoBehaviour
 	//
 	public void FireHook()
 	{
-		if( !IsFiring )
+		if( !( ( state & State.firing ) == State.firing ) )
 		{
 			// Set the speed for all the links. Target is set to null so that the head link just follows it's initial normal.
 			GetComponent<HookLinkBehaviour>().target = null;
@@ -120,7 +154,10 @@ public class HookHeadServerBehaviour : MonoBehaviour
 			networkView.RPC( "AddHeadLink", RPCMode.All );
 
 			GetComponent<HookLinkBehaviour>().enabled = true;
-			firing = true;
+
+			// Set flags.
+			state = State.firing;
+			state |= State.extending;
 		}
 	}
 
@@ -130,7 +167,6 @@ public class HookHeadServerBehaviour : MonoBehaviour
 	//
 	public void EndHook()
 	{
-		extending = true;
 		networkView.RPC( "RemoveHeadLink", RPCMode.All );
 		
 		transform.parent 								= parent;
@@ -138,11 +174,49 @@ public class HookHeadServerBehaviour : MonoBehaviour
 		transform.localPosition							= clientScript.hookOrigin.transform.localPosition;
 		clientScript.hookOrigin.transform.parent 		= transform;
 		clientScript.hookOrigin.transform.localPosition	= Vector3.zero;
+		
+		GetComponent<HookLinkBehaviour>().enabled = false;
 
+		state = State.idle;
+	}
+
+
+	//
+	// StartFade
+	//
+	public void StartFade()
+	{
+		// Free all players from this hook.
+		foreach( GameObject player in attachments )
+		{
+			player.GetComponent<PlayerServerBehaviour>().DetachFromPlayer( gameObject );
+		}
+		attachments.Clear();
+
+		fadeStartTime = Time.time;
+		state = State.fading;
+	}
+
+
+
+	//
+	// EndFade
+    //
+	public void EndFade()
+	{
+		networkView.RPC( "SetMeshAlpha", RPCMode.All, 1.0f );
+		networkView.RPC( "RemoveAllLinks", RPCMode.All );
+
+		transform.parent 								= parent;
+		transform.localRotation							= Quaternion.identity;
+		transform.localPosition							= clientScript.hookOrigin.transform.localPosition;
+		clientScript.hookOrigin.transform.parent 		= transform;
+		clientScript.hookOrigin.transform.localPosition	= Vector3.zero;
 
 		GetComponent<HookLinkBehaviour>().enabled = false;
-		firing = false;
-	}
+		
+		state = State.idle;
+    }
 
 
 
@@ -153,15 +227,19 @@ public class HookHeadServerBehaviour : MonoBehaviour
 	{
 		get
 		{
-			return firing;
+			return ( state & State.firing ) == State.firing;
 		}
 	}
 
 
 
-	private bool						extending 		= true;
-	private bool						firing			= false;
 	private	Transform					parent			= null;
 	private HookHeadClientBehaviour		clientScript	= null;
 	private List<GameObject>			clientLinks		= null;
+	private List<GameObject>			attachments		= null;
+	private State						state			= State.idle;
+	private float						fadeStartTime	= 0;
+
+
+
 }

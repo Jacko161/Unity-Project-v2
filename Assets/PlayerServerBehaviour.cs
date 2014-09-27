@@ -3,7 +3,28 @@ using System.Collections;
 
 public class PlayerServerBehaviour : MonoBehaviour 
 {
-	public GameObject				hookHead;
+
+
+	//
+	// State
+	// If state == 0, then it is idle. That is, if no other flag is
+	// set, the state is idle.
+	//
+	[System.Flags]
+	public enum State
+	{
+		idle			= 0,
+		walking			= 1,
+		attached		= 2,
+		firing			= 4,
+		swinging		= 8,
+		dying			= 16,
+        dead			= 32,
+    }
+    
+
+    
+    public GameObject				hookHead;
 	
 	// The gameObject of any hookhead that may be attached to this player. If null, there is
 	// no attachment. If not null and another hook trys to attach itself, the player dies.
@@ -16,10 +37,12 @@ public class PlayerServerBehaviour : MonoBehaviour
 	//
 	[RPC] public void FireHook( Vector3 direction )
 	{
-        if( !hookHead.GetComponent<HookHeadServerBehaviour>().IsFiring )
+        if( !hookScript.IsFiring )
         {
             hookHead.transform.forward = new Vector3( direction.x, hookHead.transform.forward.y, direction.z );
-		    hookHead.GetComponent<HookHeadServerBehaviour>().FireHook();
+			hookScript.FireHook();
+
+			state |= State.firing;
         }
 	}
 
@@ -51,6 +74,7 @@ public class PlayerServerBehaviour : MonoBehaviour
 	void Start () 
 	{
 		agent      			= GetComponent<NavMeshAgent>();
+		hookScript			= hookHead.GetComponent<HookHeadServerBehaviour>();
 	}
 	
 
@@ -63,6 +87,10 @@ public class PlayerServerBehaviour : MonoBehaviour
 		if( attachment != null )
 		{
 			MoveWithAttachment();
+		}
+		if( Input.GetKeyDown( KeyCode.U ) )
+		{
+			hookScript.StartFade();
 		}
 	}
 
@@ -108,6 +136,8 @@ public class PlayerServerBehaviour : MonoBehaviour
 
 	
 	private NavMeshAgent			agent	   			= null;
+	private State					state				= State.idle;
+	private HookHeadServerBehaviour	hookScript;
 
 
 	
@@ -133,8 +163,17 @@ public class PlayerServerBehaviour : MonoBehaviour
 		{
 			attachment = otherHook;
 			agent.enabled = false;
+			state |= State.attached;
 			return true;
 		}
+		else
+		{
+			KillPlayer();
+
+			// Play specific death animation.
+		}
+
+
 		return false;
 	}
 
@@ -150,6 +189,26 @@ public class PlayerServerBehaviour : MonoBehaviour
 			attachment = null;
 			agent.enabled = true;
 			agent.SetDestination( transform.position );
+
+			state &= ~State.attached; 
 		}
 	}
+
+
+
+	//
+	// KillPlayer
+	//
+	public void KillPlayer()
+	{
+		// Reset state to JUST dying.
+		state = State.dying;
+		
+		if( hookScript.IsFiring )
+		{
+			// We've died while shooting the hook. Make it stop and
+			// fade out.
+			hookScript.StartFade();
+        }
+    }
 }

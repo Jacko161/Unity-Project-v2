@@ -123,5 +123,34 @@ public class HookHeadClientBehaviour : MonoBehaviour
 
 
 
+	//
+	// SetMeshAlpha
+	//
+	[RPC] public void SetMeshAlpha( float newAlpha )
+	{
+		// Fade out all objects. Since hookhead is in the link list, it'll fade that out
+		// too.
+		foreach( GameObject link in links )
+		{
+			link.renderer.material.color = new Color( link.renderer.material.color.r, link.renderer.material.color.g, link.renderer.material.color.b, newAlpha );
+		}
+	}
+
+
+
+	//
+	// RemoveAllLinks
+	//
+	[RPC] public void RemoveAllLinks()
+	{
+		for( int i = 1; i < links.Count; i++ )
+		{
+			Destroy( links[i] );
+		}
+		links.Clear();
+	}
+
+
+
 	private HookHeadServerBehaviour 			serverScript	= null;
 }

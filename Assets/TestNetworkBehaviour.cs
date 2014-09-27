@@ -36,8 +36,10 @@ public class TestNetworkBehaviour : MonoBehaviour
 	//
 	void OnServerInitialized()
 	{
+		gameControllerBahviour = gameController.GetComponent<GameControllerBahviour>();
+		gameControllerBahviour.StartTeamDeathMatch( 10, "fs", "fsaf", 10000, 20, 10, "asfafds", true );
+
 		CreateNewPlayerOnServer(  Network.player );
-		gameController.GetComponent<GameControllerBahviour>().StartTeamDeathMatch( 10, "fs", "fsaf", 10000 );
 	}
 
 
@@ -47,8 +49,10 @@ public class TestNetworkBehaviour : MonoBehaviour
 	//
 	void OnConnectedToServer()
 	{
+		gameControllerBahviour = gameController.GetComponent<GameControllerBahviour>();
+		gameControllerBahviour.JoinTeamDeathMatch();
+
 		networkView.RPC( "CreateNewPlayerOnServer", RPCMode.Server, Network.player );
-		gameController.GetComponent<GameControllerBahviour>().StartTeamDeathMatch( 10, "fs", "fsaf", 10000 );
 	}
 
 
@@ -104,6 +108,7 @@ public class TestNetworkBehaviour : MonoBehaviour
 	private bool					useNat		= true;
 
 	private HostData[]				hostList	= null;
+	GameControllerBahviour			gameControllerBahviour;
 
 
 
@@ -145,6 +150,8 @@ public class TestNetworkBehaviour : MonoBehaviour
 	{
 		GameObject newPlayer = Network.Instantiate( playerPrefab, Vector3.zero, Quaternion.identity, 0 ) as GameObject;
 		newPlayer.GetComponent<PlayerClientBehaviour>().SetPlayerID( id );
+
+		gameControllerBahviour.Manager.AddNewPlayer( newPlayer );
 	}
 
 }
