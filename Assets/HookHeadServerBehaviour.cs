@@ -28,6 +28,7 @@ public class HookHeadServerBehaviour : MonoBehaviour
 	public float				speed 					= 10.0f;
 	public int					maxLinks 				= 10;
 	public float				fadeTimeSeconds			= 1.0f;
+	public string				gameControllerTag		= "GameController";
 
 
 
@@ -39,6 +40,10 @@ public class HookHeadServerBehaviour : MonoBehaviour
 		clientScript 	= GetComponent<HookHeadClientBehaviour>();
 		clientLinks		= clientScript.links;
 		attachments		= new List<GameObject>();
+
+		// Try to find the game manager script. If we can't find one, null will flag that there are no game rules
+		// to follow.
+		gameTypeScript 		= GameObject.FindGameObjectWithTag( gameControllerTag ).GetComponent<GameTypeManager>();
 	}
 
 
@@ -92,7 +97,6 @@ public class HookHeadServerBehaviour : MonoBehaviour
 			float		deltaFadeTime =  Time.time - fadeStartTime;
 			networkView.RPC( "SetMeshAlpha", RPCMode.All, 1.0f - ( deltaFadeTime / fadeTimeSeconds ) );
 
-			Debug.Log(  1.0f - ( deltaFadeTime / fadeTimeSeconds ) );
 			if( deltaFadeTime > fadeTimeSeconds )
 			{
 				EndFade();
@@ -122,6 +126,10 @@ public class HookHeadServerBehaviour : MonoBehaviour
 				if( ( state & State.extending ) == State.extending )
 				{
 					attachments.Add( other.gameObject );
+					if( gameTypeScript != null )
+					{
+						gameTypeScript.OnPlayerDamage( parent.gameObject, other.gameObject, gameObject );
+					}
 
 					// We hit a player. Attach to them and start retracting.
 					state &= ~State.extending;
@@ -191,8 +199,8 @@ public class HookHeadServerBehaviour : MonoBehaviour
 		{
 			player.GetComponent<PlayerServerBehaviour>().DetachFromPlayer( gameObject );
 		}
-		attachments.Clear();
-
+        attachments.Clear();
+		
 		fadeStartTime = Time.time;
 		state = State.fading;
 	}
@@ -239,6 +247,7 @@ public class HookHeadServerBehaviour : MonoBehaviour
 	private List<GameObject>			attachments		= null;
 	private State						state			= State.idle;
 	private float						fadeStartTime	= 0;
+	private GameTypeManager				gameTypeScript	= null;
 
 
 

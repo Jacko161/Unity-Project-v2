@@ -20,6 +20,20 @@ public class TeamDeathMatch : GameTypeManager
 
 
 	//
+	// ClientGameState
+	//
+	public enum ClientGameState
+	{
+		playing,
+		dying,
+		respawning,
+		shopping,
+		menu,
+	}
+
+
+
+	//
 	// TDPlayerData
 	//
 	public class TDPlayerData : BasePlayerData
@@ -57,7 +71,10 @@ public class TeamDeathMatch : GameTypeManager
 	//
 	public void OnGUI()
 	{
-		base.OnGUI();
+		if( gameState == ClientGameState.playing )
+		{
+			base.OnGUI();
+		}
 	}
 
 
@@ -72,22 +89,92 @@ public class TeamDeathMatch : GameTypeManager
 
 
 
-    //
-    // OnPlayerKill
-    //
-    public override void OnPlayerKill( GameObject killer, GameObject victim )
-    {
+	//
+	// OnPlayerKill
+	//
+	public override void OnPlayerKill( GameObject killer, GameObject victim, GameObject weapon, DeathType type )
+	{
+		var		playerData	= ( TDPlayerData )FindDataFromPlayer( victim );
 
-    }
+		// Do specific things based on how the player died.
+		if( type == DeathType.torn )
+		{
+			// Torn animation.
+		}
+		else if( type == DeathType.meleed )
+		{
+			// Meleed animation.
+		}
+		else if( type == DeathType.hooked )
+		{
+			// Hooked animation.
+		}
 
+		// Kill the player.
+		playerData.player.GetComponent<PlayerServerBehaviour>().KillPlayer();
 
+		// Switch the gamestate to dying.
+		gameState = ClientGameState.dying;
+	}
+	
+	
+	
+	//
+	// OnPlayerRespawn
+	//
+	public override void OnPlayerRespawn( GameObject player )
+	{
+		
+	}
 
+	
+	
+	
 	//
 	// OnPlayerDamage
 	//
-	public virtual void OnPlayerDamage( GameObject damager, GameObject victim )
+	public override void OnPlayerDamage( GameObject damager, GameObject victim, GameObject weapon )
 	{
+		if( weapon.tag == "HookHead" )
+		{
+			var		playerData	= ( TDPlayerData )FindDataFromPlayer( victim );
+			playerData.currentHealth -= hookDamage;
 
+			if( playerData.currentHealth <= 0.0f )
+			{
+				OnPlayerKill( damager, victim, weapon, DeathType.hooked );
+			}
+		}
+	}
+	
+	
+	
+	//
+	// OnPlayerAttachToHook
+	//
+	public override void OnPlayerAttachToHook( GameObject attacher, GameObject attachee, GameObject hookHead )
+	{
+		
+	}
+	
+	
+	
+	//
+	// OnPlayerDetachFromHook
+	//
+	public override void OnPlayeDetachFromHook( GameObject attacher, GameObject attachee, GameObject hookHead )
+	{
+		
+	}
+	
+	
+	
+	//
+	// OnGameFinish
+	//
+	public override void OnGameFinish()
+	{
+		
 	}
 
 
@@ -95,12 +182,12 @@ public class TeamDeathMatch : GameTypeManager
 	//
 	// AddNewPlayer
 	//
-	public virtual void AddNewPlayer( GameObject newPlayer )
+	public override void AddNewPlayer( GameObject newPlayer )
 	{
 		TDPlayerData	playerData = new TDPlayerData();
 
 		playerData.player 			= newPlayer;
-		playerData.maxHealth		= 100;
+		playerData.maxHealth		= initialHealth;
 		playerData.currentHealth	= playerData.maxHealth;
 		playerData.gold				= 0;
 		playerData.kills			= 0;
@@ -127,5 +214,14 @@ public class TeamDeathMatch : GameTypeManager
 	private int			timeLimitSeconds	= 0;
 	private Team		teamOne;
 	private Team		teamTwo;
+
+
+	// TD constants.
+	private const float	initialHealth		= 100.0f;
+	private const float	hookDamage			= 50.0f;
+	private const float	meleeDamage			= 20.0f;
+
+	// Client parameters.
+	ClientGameState		gameState			= ClientGameState.playing;
 }
 

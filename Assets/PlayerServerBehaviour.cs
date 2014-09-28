@@ -25,7 +25,8 @@ public class PlayerServerBehaviour : MonoBehaviour
 
     
     public GameObject				hookHead;
-	
+	public string					gameControllerTag		= "GameController";
+
 	// The gameObject of any hookhead that may be attached to this player. If null, there is
 	// no attachment. If not null and another hook trys to attach itself, the player dies.
 	public GameObject               attachment;
@@ -75,6 +76,11 @@ public class PlayerServerBehaviour : MonoBehaviour
 	{
 		agent      			= GetComponent<NavMeshAgent>();
 		hookScript			= hookHead.GetComponent<HookHeadServerBehaviour>();
+
+
+		// Try to find the game manager script. If we can't find one, null will flag that there are no game rules
+		// to follow.
+		gameTypeScript 		= GameObject.FindGameObjectWithTag( gameControllerTag ).GetComponent<GameTypeManager>();
 	}
 	
 
@@ -138,7 +144,7 @@ public class PlayerServerBehaviour : MonoBehaviour
 	private NavMeshAgent			agent	   			= null;
 	private State					state				= State.idle;
 	private HookHeadServerBehaviour	hookScript;
-
+	private	GameTypeManager			gameTypeScript	= null;
 
 	
 	//
@@ -163,6 +169,7 @@ public class PlayerServerBehaviour : MonoBehaviour
 		{
 			attachment = otherHook;
 			agent.enabled = false;
+
 			state |= State.attached;
 			return true;
 		}

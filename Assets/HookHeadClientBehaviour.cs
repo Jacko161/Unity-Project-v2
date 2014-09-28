@@ -6,7 +6,7 @@ public class HookHeadClientBehaviour : MonoBehaviour
 {
 
 	public GameObject				hookOrigin;
-	public List<GameObject>			links 			= new List<GameObject>();
+	public List<GameObject>			links 					= new List<GameObject>();
 
 
 
@@ -17,10 +17,6 @@ public class HookHeadClientBehaviour : MonoBehaviour
 	{
 		serverScript = GetComponent<HookHeadServerBehaviour>();
 	}
-
-
-
-
 
 
 

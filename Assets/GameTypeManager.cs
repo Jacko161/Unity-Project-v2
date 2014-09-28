@@ -21,6 +21,18 @@ public class GameTypeManager : MonoBehaviour
 
 
 	//
+	// DeathType
+	//
+	public enum DeathType
+	{
+		torn,
+		meleed,
+		hooked,
+	}
+
+
+
+	//
 	// PlayerData
 	//
 	public class BasePlayerData
@@ -57,7 +69,7 @@ public class GameTypeManager : MonoBehaviour
     //
     // OnPlayerKill
     //
-    public virtual void OnPlayerKill( GameObject killer, GameObject victim )
+	public virtual void OnPlayerKill( GameObject killer, GameObject victim, GameObject weapon, DeathType type )
     {
 
     }
@@ -74,6 +86,36 @@ public class GameTypeManager : MonoBehaviour
 
 
 
+	//
+	// OnPlayerDamage
+	//
+	public virtual void OnPlayerDamage( GameObject damager, GameObject victim, GameObject weapon )
+	{
+
+	}
+
+
+
+	//
+	// OnPlayerAttachToHook
+	//
+	public virtual void OnPlayerAttachToHook( GameObject attacher, GameObject attachee, GameObject hookHead )
+	{
+
+	}
+
+
+
+	//
+	// OnPlayerDetachFromHook
+	//
+	public virtual void OnPlayeDetachFromHook( GameObject attacher, GameObject attachee, GameObject hookHead )
+	{
+
+	}
+
+
+
     //
     // OnGameFinish
     //
@@ -81,16 +123,6 @@ public class GameTypeManager : MonoBehaviour
     {
 
     }
-
-
-
-	//
-	// OnPlayerDamage
-	//
-	public virtual void OnPlayerDamage( GameObject damager, GameObject victim )
-	{
-
-	}
 
 
 
@@ -122,6 +154,16 @@ public class GameTypeManager : MonoBehaviour
 		GUI.Box(new Rect(Screen.width / 2 - 50, Screen.height - (Screen.height * 0.99f) + 50, 50, 50), "Timer");
 		
 		GUI.Button(new Rect(50, Screen.height - 200, 100, 50), "Shop");
+	}
+
+
+
+	//
+	// FindDataFromPlayer
+	//
+	protected BasePlayerData FindDataFromPlayer( GameObject player )
+	{
+		return players.Find( i => i.player == player );
 	}
 
 
