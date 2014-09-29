@@ -9,6 +9,21 @@ public class GameTypeManager : MonoBehaviour
 {
 
 
+
+	//
+	// ClientGameState
+	//
+	public enum GameState
+	{
+		playing		= 0,
+		dying		= 1,
+		respawning	= 2,
+		shopping	= 3,
+		menu		= 4,
+	}
+
+
+
 	//
 	// Type
 	//
@@ -28,16 +43,6 @@ public class GameTypeManager : MonoBehaviour
 		torn,
 		meleed,
 		hooked,
-	}
-
-
-
-	//
-	// PlayerData
-	//
-	public class BasePlayerData
-	{
-		public GameObject			player;
 	}
 
 
@@ -131,9 +136,7 @@ public class GameTypeManager : MonoBehaviour
 	//
 	public virtual void AddNewPlayer( GameObject newPlayer )
 	{
-		BasePlayerData		playerData = new BasePlayerData();
-		playerData.player	= newPlayer;
-		players.Add( playerData );
+
 	}
 
 
@@ -143,33 +146,11 @@ public class GameTypeManager : MonoBehaviour
 	//
 	public void OnGUI()
 	{
-		GUI.Box(new Rect(100, Screen.height - 100, 50, 50), "$");
-		GUI.Box(new Rect(Screen.width / 2, Screen.height - 150, 50, 50), "HP");
-		GUI.Box(new Rect(Screen.width / 4, Screen.height - 100, 50, 50), "CD");
-		GUI.Box(new Rect(Screen.width / 2, Screen.height - 75, 50, 50), "Mana");
-		
-		GUI.Box(new Rect(Screen.width - 250, Screen.height - 250, 250, 250), "Map");
-		
-		GUI.Box(new Rect(Screen.width / 2 - 50, Screen.height - (Screen.height * 0.99f), 50, 50), "Scores");
-		GUI.Box(new Rect(Screen.width / 2 - 50, Screen.height - (Screen.height * 0.99f) + 50, 50, 50), "Timer");
-		
-		GUI.Button(new Rect(50, Screen.height - 200, 100, 50), "Shop");
+
 	}
 
 
 
-	//
-	// FindDataFromPlayer
-	//
-	protected BasePlayerData FindDataFromPlayer( GameObject player )
-	{
-		return players.Find( i => i.player == player );
-	}
-
-
-
-
-	protected List<BasePlayerData> 			players				= new List<BasePlayerData>();
 	protected int							maxConnections		= 4;
 	protected int							maxPlayers			= 4;
 	protected string						roomName			= "";

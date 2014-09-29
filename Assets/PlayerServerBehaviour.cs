@@ -3,24 +3,6 @@ using System.Collections;
 
 public class PlayerServerBehaviour : MonoBehaviour 
 {
-
-
-	//
-	// State
-	// If state == 0, then it is idle. That is, if no other flag is
-	// set, the state is idle.
-	//
-	[System.Flags]
-	public enum State
-	{
-		idle			= 0,
-		walking			= 1,
-		attached		= 2,
-		firing			= 4,
-		swinging		= 8,
-		dying			= 16,
-        dead			= 32,
-    }
     
 
     
@@ -43,7 +25,7 @@ public class PlayerServerBehaviour : MonoBehaviour
             hookHead.transform.forward = new Vector3( direction.x, hookHead.transform.forward.y, direction.z );
 			hookScript.FireHook();
 
-			state |= State.firing;
+			networkView.RPC( "SetState", RPCMode.All, ( int )( clientScript.GetState() | PlayerClientBehaviour.State.firing ) );
         }
 	}
 
@@ -76,7 +58,7 @@ public class PlayerServerBehaviour : MonoBehaviour
 	{
 		agent      			= GetComponent<NavMeshAgent>();
 		hookScript			= hookHead.GetComponent<HookHeadServerBehaviour>();
-
+		clientScript		= GetComponent<PlayerClientBehaviour>();
 
 		// Try to find the game manager script. If we can't find one, null will flag that there are no game rules
 		// to follow.
@@ -142,7 +124,7 @@ public class PlayerServerBehaviour : MonoBehaviour
 
 	
 	private NavMeshAgent			agent	   			= null;
-	private State					state				= State.idle;
+	private PlayerClientBehaviour	clientScript;
 	private HookHeadServerBehaviour	hookScript;
 	private	GameTypeManager			gameTypeScript	= null;
 
@@ -170,7 +152,7 @@ public class PlayerServerBehaviour : MonoBehaviour
 			attachment = otherHook;
 			agent.enabled = false;
 
-			state |= State.attached;
+			networkView.RPC( "SetState", RPCMode.All, ( int )( clientScript.GetState() | PlayerClientBehaviour.State.attached ) );
 			return true;
 		}
 		else
@@ -197,7 +179,8 @@ public class PlayerServerBehaviour : MonoBehaviour
 			agent.enabled = true;
 			agent.SetDestination( transform.position );
 
-			state &= ~State.attached; 
+			// Remove the attached flag.
+			networkView.RPC( "SetState", RPCMode.All, ( int )( clientScript.GetState() & ~PlayerClientBehaviour.State.attached ) );
 		}
 	}
 
@@ -209,7 +192,7 @@ public class PlayerServerBehaviour : MonoBehaviour
 	public void KillPlayer()
 	{
 		// Reset state to JUST dying.
-		state = State.dying;
+		networkView.RPC( "SetState", RPCMode.All, ( int )PlayerClientBehaviour.State.dying );
 		
 		if( hookScript.IsFiring )
 		{

@@ -20,37 +20,6 @@ public class TeamDeathMatch : GameTypeManager
 
 
 	//
-	// ClientGameState
-	//
-	public enum ClientGameState
-	{
-		playing,
-		dying,
-		respawning,
-		shopping,
-		menu,
-	}
-
-
-
-	//
-	// TDPlayerData
-	//
-	public class TDPlayerData : BasePlayerData
-	{
-		public float			maxHealth;
-		public float			currentHealth;
-		public float			gold;
-		 
-		public Team				team;
-		 
-		public int				kills;
-		public int				deaths;
-	}
-
-
-
-	//
 	// Initialise
 	//
 	public void Initialise( int neededKills, string teamOneName, string teamTwoName, int timeSeconds, int maxConnections, int maxPlayers, string roomName, bool isServerPlayer )
@@ -61,6 +30,10 @@ public class TeamDeathMatch : GameTypeManager
 		teamOne.Name 		= teamOneName;
 		teamTwo.Name		= teamTwoName;
 		timeLimitSeconds 	= timeSeconds;
+
+		// Sync all the score attributes to the clients. This will be buffered so future clients will still run
+		// this upon joining.
+		networkView.RPC( "SyncScores", RPCMode.AllBuffered, teamOne.Name, teamOne.score, teamOne.count, teamTwo.Name, teamTwo.score, teamTwo.count );
 	}
 
 
@@ -71,9 +44,35 @@ public class TeamDeathMatch : GameTypeManager
 	//
 	public void OnGUI()
 	{
-		if( gameState == ClientGameState.playing )
+		base.OnGUI();
+
+		// Find player.
+		GameObject 			player = Utility.FindThisPlayer();
+
+		if( player != null )
 		{
-			base.OnGUI();
+			var 		playerScript = player.GetComponent<PlayerClientBehaviour>();
+
+			// If the player is not dead or dying.
+			if( ( int )( playerScript.GetState() & ( PlayerClientBehaviour.State.dying | PlayerClientBehaviour.State.dead ) ) == 0 )
+			{
+				GUI.Box(new Rect(100, Screen.height - 100, 50, 50), "$");
+				GUI.Box(new Rect(Screen.width / 2, Screen.height - 150, 50, 50), "HP: " + playerScript.GetGameData( currentHealth ) );
+				GUI.Box(new Rect(Screen.width / 4, Screen.height - 100, 50, 50), "CD");
+				GUI.Box(new Rect(Screen.width / 2, Screen.height - 75, 50, 50), "Mana");
+				
+				GUI.Box(new Rect(Screen.width - 250, Screen.height - 250, 250, 250), "Map");
+				
+				GUI.Box(new Rect(Screen.width / 2 - 50, Screen.height - (Screen.height * 0.99f), 250, 50), "Scores:\n" + teamOne.Name + ": " + teamOne.score + "\n" + teamTwo.Name + ": " + teamTwo.score );
+				GUI.Box(new Rect(Screen.width / 2 - 50, Screen.height - (Screen.height * 0.99f) + 50, 50, 50), "Timer");
+				
+				GUI.Button(new Rect(50, Screen.height - 200, 100, 50), "Shop");
+			}
+			// If the player is dying.
+			else if( ( playerScript.GetState() & PlayerClientBehaviour.State.dying ) == PlayerClientBehaviour.State.dying )
+			{
+				GUI.Box( new Rect( 300, 300, 200, 200 ), "Dying" );
+			}
 		}
 	}
 
@@ -94,8 +93,6 @@ public class TeamDeathMatch : GameTypeManager
 	//
 	public override void OnPlayerKill( GameObject killer, GameObject victim, GameObject weapon, DeathType type )
 	{
-		var		playerData	= ( TDPlayerData )FindDataFromPlayer( victim );
-
 		// Do specific things based on how the player died.
 		if( type == DeathType.torn )
 		{
@@ -111,10 +108,10 @@ public class TeamDeathMatch : GameTypeManager
 		}
 
 		// Kill the player.
-		playerData.player.GetComponent<PlayerServerBehaviour>().KillPlayer();
+		victim.GetComponent<PlayerServerBehaviour>().KillPlayer();
 
-		// Switch the gamestate to dying.
-		gameState = ClientGameState.dying;
+		// Increase the killer's team's score.
+		networkView.RPC( "UpdateScore", RPCMode.All, killer.GetComponent<PlayerClientBehaviour>().GetGameData( team ), 1 );
 	}
 	
 	
@@ -137,10 +134,11 @@ public class TeamDeathMatch : GameTypeManager
 	{
 		if( weapon.tag == "HookHead" )
 		{
-			var		playerData	= ( TDPlayerData )FindDataFromPlayer( victim );
-			playerData.currentHealth -= hookDamage;
+			var			playerScript = victim.GetComponent<PlayerClientBehaviour>();
 
-			if( playerData.currentHealth <= 0.0f )
+			playerScript.SetGameData( currentHealth, ( float )( playerScript.GetGameData( currentHealth ) ) - hookDamage );
+
+			if( ( float )( playerScript.GetGameData( currentHealth ) ) <= 0.0f )
 			{
 				OnPlayerKill( damager, victim, weapon, DeathType.hooked );
 			}
@@ -184,28 +182,27 @@ public class TeamDeathMatch : GameTypeManager
 	//
 	public override void AddNewPlayer( GameObject newPlayer )
 	{
-		TDPlayerData	playerData = new TDPlayerData();
+		PlayerClientBehaviour		playerScript = newPlayer.GetComponent<PlayerClientBehaviour>();
 
-		playerData.player 			= newPlayer;
-		playerData.maxHealth		= initialHealth;
-		playerData.currentHealth	= playerData.maxHealth;
-		playerData.gold				= 0;
-		playerData.kills			= 0;
-		playerData.deaths			= 0;
-
+		playerScript.SetGameData( maxHealth, initialHealth );
+		playerScript.SetGameData( currentHealth, initialHealth );
+		playerScript.SetGameData( gold, 0 );
+		playerScript.SetGameData( kills, 0 );
+		playerScript.SetGameData( deaths, 0 );
+		
 		// Will need to add team selection.
-		if( teamOne.count > teamTwo.count )
+		if( teamOne.count <= teamTwo.count )
 		{
-			playerData.team = teamTwo;
+			// Set the player team and update team count on all clients.
+			playerScript.SetGameData( team, teamOne.Name );
+			networkView.RPC( "UpdateCount", RPCMode.All, teamOne.Name, 1 );
 		}
 		else
 		{
-			playerData.team = teamOne;
+			playerScript.SetGameData( team, teamTwo.Name );
+			networkView.RPC( "UpdateCount", RPCMode.All, teamTwo.Name, 1 );
 		}
-
-		players.Add( playerData );
 	}
-
 
 
 
@@ -221,7 +218,65 @@ public class TeamDeathMatch : GameTypeManager
 	private const float	hookDamage			= 50.0f;
 	private const float	meleeDamage			= 20.0f;
 
-	// Client parameters.
-	ClientGameState		gameState			= ClientGameState.playing;
+	private const string maxHealth			= "maxHealth";
+	private const string currentHealth		= "currentHealth";
+	private const string gold				= "gold";
+	private const string kills				= "kills";
+	private const string deaths				= "deaths";
+	private const string team				= "team";
+
+
+
+	//
+	// UpdateScore
+	// Update the score across all clients.
+	//
+	[RPC] private void UpdateScore( string teamName, int delta )
+	{
+		if( teamName == teamOne.Name )
+		{
+			teamOne.score += delta;
+		}
+		else if( teamName == teamTwo.Name )
+		{
+			teamTwo.score += delta;
+		}
+	}
+
+
+	//
+	// UpdateCount
+	//
+	[RPC] private void UpdateCount( string teamName, int delta )
+	{
+		if( teamName == teamOne.Name )
+		{
+			teamOne.count += delta;
+		}
+		else if( teamName == teamTwo.Name )
+		{
+			teamTwo.count += delta;
+		}
+	}
+
+
+
+	//
+	// SyncScores
+	// Completely syncs scores across all clients.
+	//
+	[RPC] private void SyncScores( string teamOneName, int teamOneScore, int teamOneCount, string teamTwoName, int teamTwoScore, int teamTwoCount )
+	{
+		teamOne.Name 			= teamOneName;
+		teamOne.score 			= teamOneScore;
+		teamOne.count 			= teamOneCount;
+
+		teamTwo.Name			= teamTwoName;
+		teamTwo.score			= teamTwoScore;
+		teamTwo.count			= teamTwoCount;
+	}
+
+
+
 }
 
